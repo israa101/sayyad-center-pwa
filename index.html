@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>الأستاذ محمود الصياد</title>
+<meta name="description" content="نظام إدارة مركز الأستاذ محمود الصياد للتطوير التعليمي - متابعة الحضور والدرجات والملاحظات">
+
+<!-- PWA Meta Tags -->
+<meta name="theme-color" content="#0B1220">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="مركز الصياد">
+<meta name="application-name" content="مركز الصياد">
+<meta name="format-detection" content="telephone=no">
+
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="styles.css">
+</head>
+<body dir="rtl">
+
+
+<!-- ============ SPLASH / LOADING SCREEN ============ -->
+<div id="splashScreen" class="splash-screen">
+  <div class="splash-content">
+    <div class="splash-logo">📚</div>
+    <h1 class="splash-title">I'M Techno</h1>
+    <p class="splash-subtitle">الأستاذ محمود الصياد</p>
+    <div class="splash-loader"><span></span><span></span><span></span></div>
+  </div>
+</div>
+
+<!-- ============ LOGIN MODAL (PIN AUTH — hardcoded) ============ -->
+<div id="loginModal" class="modal-overlay" aria-hidden="false">
+  <div class="modal-box login-box">
+    <div class="login-header">
+      <div class="login-icon">🔐</div>
+      <h2>تسجيل الدخول</h2>
+      <p class="muted">من فضلك أدخل الرقم السري المكوّن من 4 أرقام</p>
+    </div>
+
+    <div class="pin-display" id="pinDisplay">
+      <span class="pin-dot" data-i="0"></span>
+      <span class="pin-dot" data-i="1"></span>
+      <span class="pin-dot" data-i="2"></span>
+      <span class="pin-dot" data-i="3"></span>
+    </div>
+
+    <p id="pinError" class="pin-error hidden">الرقم السري غير صحيح، حاول مرة أخرى</p>
+
+    <div class="pin-pad" id="pinPad">
+      <button class="pin-key" data-key="1">1</button>
+      <button class="pin-key" data-key="2">2</button>
+      <button class="pin-key" data-key="3">3</button>
+      <button class="pin-key" data-key="4">4</button>
+      <button class="pin-key" data-key="5">5</button>
+      <button class="pin-key" data-key="6">6</button>
+      <button class="pin-key" data-key="7">7</button>
+      <button class="pin-key" data-key="8">8</button>
+      <button class="pin-key" data-key="9">9</button>
+      <button class="pin-key pin-key-action" id="pinClear">مسح</button>
+      <button class="pin-key" data-key="0">0</button>
+      <button class="pin-key pin-key-action" id="pinBackspace">⌫</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ APP ROOT ============ -->
+<div id="app" class="app-root hidden">
+
+  <!-- ===== TOP HEADER ===== -->
+  <header class="app-header">
+    <div class="header-top">
+      <div class="brand">
+        <span class="brand-emoji">📚</span>
+        <div class="brand-text">
+          <h1>الأستاذ محمود الصياد</h1>
+          <span class="brand-sub">I'M Techno</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span id="syncBadge" class="sync-badge online">
+          <span class="sync-dot"></span>
+          <span id="syncBadgeText">متصل</span>
+        </span>
+        <button id="themeToggleBtn" class="icon-btn" title="تبديل الوضع الليلي/النهاري" aria-label="تبديل الوضع الليلي/النهاري">🌓</button>
+        <button id="addStudentBtn" class="icon-btn" title="إضافة طالب جديد" aria-label="إضافة طالب جديد">➕</button>
+        <button id="logoutBtn" class="icon-btn" title="تسجيل الخروج" aria-label="تسجيل الخروج">🚪</button>
+      </div>
+    </div>
+
+    <!-- ══ TASK 2 — Tab 1: Tab navigation: 3 tabs now ══ -->
+    <div class="header-tabs">
+      <button class="header-tab active" id="tabAttendance" data-tab="attendance">
+        <span>👥</span> الطلاب
+      </button>
+      <button class="header-tab" id="tabApprovals" data-tab="approvals">
+        <span>⏳</span> طابور الاعتماد
+        <span class="tab-badge hidden" id="pendingTabBadge">0</span>
+      </button>
+      <!-- ══ NEW: Reports tab ══ -->
+      <button class="header-tab" id="tabReports" data-tab="reports">
+        <span>📊</span> التقارير
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== ATTENDANCE VIEW ===== -->
+  <main id="attendanceView" class="view">
+
+    <section class="search-section">
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="search" id="studentSearch" placeholder="ابحث بالاسم أو رقم الطالب (مثال: 1001 أو أحمد)" autocomplete="off" inputmode="search">
+        <button id="clearSearchBtn" class="clear-search-btn hidden" aria-label="مسح البحث">✕</button>
+      </div>
+
+      <!-- فلتر السنتر + المرحلة الدراسية لصفحة الطلاب -->
+      <div class="approval-filters students-filters" id="studentsFilters">
+        <div class="filter-group">
+          <label class="filter-label">السنتر</label>
+          <select class="input-field select-field filter-select" id="studentsFilterBranch">
+            <option value="">— كل السنتر —</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">المرحلة الدراسية</label>
+          <select class="input-field select-field filter-select" id="studentsFilterYear">
+            <option value="">— كل المراحل —</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="filter-chips" id="groupChips">
+        <button class="chip active" data-group="all">الكل</button>
+      </div>
+    </section>
+
+    <section class="queue-summary hidden" id="localQueueSummary">
+      <div class="queue-summary-inner">
+        <span class="queue-icon">📥</span>
+        <span>سجلات بانتظار الاعتماد: <strong id="pendingCountDisplay">0</strong></span>
+      </div>
+    </section>
+
+    <section class="students-section">
+      <div id="studentsList" class="students-list"></div>
+      <div id="noResults" class="empty-state hidden">
+        <span class="empty-emoji">🕵️‍♂️</span>
+        <p>لا توجد نتائج مطابقة لبحثك</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== APPROVALS / DASHBOARD VIEW ===== -->
+  <main id="approvalsView" class="view hidden">
+
+    <section class="stats-grid">
+      <div class="stat-card stat-blue">
+        <span class="stat-icon">👥</span>
+        <div class="stat-info">
+          <span class="stat-value" id="statTotalStudents">0</span>
+          <span class="stat-label">إجمالي الطلاب</span>
+        </div>
+      </div>
+      <div class="stat-card stat-purple">
+        <span class="stat-icon">🏷️</span>
+        <div class="stat-info">
+          <span class="stat-value" id="statActiveGroups">0</span>
+          <span class="stat-label">المجموعات النشطة</span>
+        </div>
+      </div>
+      <div class="stat-card stat-orange">
+        <span class="stat-icon">⏳</span>
+        <div class="stat-info">
+          <span class="stat-value" id="statPendingApprovals">0</span>
+          <span class="stat-label">طابور الاعتماد</span>
+        </div>
+      </div>
+      <div class="stat-card stat-green">
+        <span class="stat-icon">✅</span>
+        <div class="stat-info">
+          <span class="stat-value" id="statApprovedToday">0</span>
+          <span class="stat-label">تم اعتمادها اليوم</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="approvals-section">
+      <div class="section-header">
+        <h2>طابور اعتماد السجلات</h2>
+        <div class="section-header-actions">
+          <!-- ══ TASK 2 — Approvals 1: "Export Excel" button REMOVED ══ -->
+          <button id="approveAllBtn" class="btn btn-small btn-ghost hidden">اعتماد الكل</button>
+        </div>
+      </div>
+
+      <!-- ══ TASK 2 — Approvals 2: Search bar inside Approvals view ══ -->
+      <div class="approvals-search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="search" id="approvalsSearch" placeholder="ابحث بالاسم أو رقم الطالب..." autocomplete="off" inputmode="search">
+        <button id="clearApprovalsSearchBtn" class="clear-search-btn hidden" aria-label="مسح البحث">✕</button>
+      </div>
+
+      <div id="approvalsList" class="approvals-list"></div>
+      <div id="noApprovals" class="empty-state hidden">
+        <span class="empty-emoji">🎉</span>
+        <p>لا توجد سجلات بانتظار الاعتماد حاليًا</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ══════════════════════════════════════════════════
+       TASK 2 — REPORTS VIEW (new main container)
+       Shows today's approved/synced records grouped by
+       Branch | Year | Day | Time. Auto-resets at midnight.
+       ══════════════════════════════════════════════════ -->
+  <main id="reportsView" class="view hidden">
+
+    <div class="section-header" style="margin-bottom:18px;">
+      <h2>📊 تقارير اليوم</h2>
+      <span class="reports-date-badge" id="reportsTodayLabel"></span>
+    </div>
+
+    <!-- Report cards are injected here by renderReportsView() -->
+    <div id="reportCardsList" class="report-cards-list"></div>
+
+    <div id="noReports" class="empty-state hidden">
+      <span class="empty-emoji">📋</span>
+      <p>لا توجد مجموعات معتمدة حتى الآن اليوم</p>
+      <p class="muted" style="margin-top:6px; font-size:12px;">اعتمد السجلات من تبويب "طابور الاعتماد" لتظهر هنا</p>
+    </div>
+  </main>
+
+  <!-- ===== BOTTOM TOAST CONTAINER ===== -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+</div>
+
+<!-- ============ STUDENT CARD TEMPLATE ============ -->
+<template id="studentCardTemplate">
+  <article class="student-card" data-id="">
+    <div class="student-card-head">
+      <div class="student-avatar"></div>
+      <div class="student-meta">
+        
+
+
+        <h3 class="student-name"></h3>
+
+
+        <div class="student-sub-meta" data-role="subMeta">
+          <span class="student-branch" data-role="studentBranch"></span>
+          <span class="student-sub-sep" data-role="subSep">•</span>
+          <span class="student-phone" data-role="studentPhone"></span>
+        </div>
+      
+        <!-- إضافة صف اليوم والموعد تحت السنتر والرقم -->
+        <div class="student-schedule" data-role="scheduleRow">
+          <span class="student-schedule-item" data-role="studentDay"></span>
+          <span class="student-schedule-item" data-role="studentTime"></span>
+        </div>
+
+
+        <div class="student-tags">
+          <span class="tag tag-id">#<span class="student-id"></span></span>
+          <span class="tag tag-group"></span>
+        </div>
+      </div>
+      <span class="status-pill status-none" data-role="statusPill">لم يُسجَّل بعد</span>
+    </div>
+
+    <!-- Draft confirmation banner (hidden until حاضر is clicked) -->
+    <div class="draft-confirm hidden" data-role="draftConfirm">
+      <span class="draft-confirm-icon">✅</span>
+      <div class="draft-confirm-text">
+        <strong>تم تسجيل الدخول</strong>
+        <span data-role="draftTime" class="draft-time"></span>
+      </div>
+    </div>
+
+    <!-- Single attendance button: حاضر only (Change #3) -->
+    <div class="attendance-row-single">
+      <button class="attend-btn attend-present" data-action="present">
+        <span class="attend-icon">✅</span> حاضر
+      </button>
+    </div>
+
+    <div class="student-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>درجة الواجب</label>
+          <div class="grade-pair">
+            <input type="number" class="input-field" data-field="homeworkGrade" min="0" placeholder="الدرجة" inputmode="numeric">
+            <span class="grade-sep">/</span>
+            <input type="number" class="input-field grade-max-field" data-field="homeworkMax" value="10" readonly tabindex="-1">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>درجة الامتحان</label>
+          <div class="grade-pair">
+            <input type="number" class="input-field" data-field="examGrade" min="0" placeholder="الدرجة" inputmode="numeric">
+            <span class="grade-sep">/</span>
+            <input type="number" class="input-field grade-max-field" data-field="examMax" value="10" readonly tabindex="-1">
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>ملاحظات</label>
+        <textarea class="input-field textarea-field" data-field="notes" rows="2" placeholder="اكتب أي ملاحظات عن الطالب..."></textarea>
+      </div>
+    </div>
+
+    <button class="btn btn-save" data-action="save" disabled>
+      <span class="save-icon">📤</span> إرسال للاعتماد
+    </button>
+  </article>
+</template>
+
+<!-- ============ SESSION CARD TEMPLATE ============ -->
+<template id="sessionCardTemplate">
+  <article class="session-card" data-session-key="">
+    <div class="session-card-header">
+      <div class="session-card-title-block">
+        <h3 class="session-card-title" data-role="sessionTitle"></h3>
+        <span class="session-card-sub" data-role="sessionSub"></span>
+      </div>
+      <span class="session-status-pill" data-role="sessionStatusPill"></span>
+    </div>
+
+    <div class="report-metrics session-metrics">
+      <div class="report-metric report-metric-total">
+        <span class="report-metric-value" data-role="metricTotal">0</span>
+        <span class="report-metric-label">إجمالي</span>
+      </div>
+      <div class="report-metric report-metric-attended">
+        <span class="report-metric-value" data-role="metricAttended">0</span>
+        <span class="report-metric-label">حاضر</span>
+      </div>
+      <div class="report-metric report-metric-absent">
+        <span class="report-metric-value" data-role="metricAbsent">0</span>
+        <span class="report-metric-label">غائب</span>
+      </div>
+    </div>
+
+    <div class="session-card-actions">
+      <button class="btn btn-approve" data-action="approveSession">
+        <span>✅</span> اعتماد الجلسة
+      </button>
+      <button class="btn btn-edit" data-action="editSession">
+        <span>✏️</span> تعديل الجلسة
+      </button>
+    </div>
+  </article>
+</template>
+
+<!-- ============ EDIT SESSION MODAL (Session Cards architecture) ============ -->
+<div id="editSessionModal" class="modal-overlay hidden" aria-hidden="true">
+  <div class="modal-box edit-session-box">
+    <div class="modal-header">
+      <h2 id="editSessionTitle">تعديل الجلسة</h2>
+      <button class="modal-close" id="editSessionModalClose" aria-label="إغلاق">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="muted" id="editSessionSub" style="margin-bottom:12px;"></p>
+
+      <div class="approvals-search-bar" style="margin-bottom:12px;">
+        <span class="search-icon">🔍</span>
+        <input type="search" id="editSessionSearch" placeholder="ابحث عن طالب..." autocomplete="off">
+      </div>
+
+      <div id="editSessionStudentList" class="edit-session-student-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="cancelEditSessionBtn">إلغاء</button>
+      <button class="btn btn-primary" id="saveSessionEditBtn">💾 حفظ التعديلات</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ EDIT SESSION: STUDENT ROW TEMPLATE ============ -->
+<template id="editSessionStudentRowTemplate">
+  <div class="edit-session-row" data-student-id="">
+    <div class="edit-session-row-head">
+      <div class="student-avatar small" data-role="avatar"></div>
+      <div class="student-meta">
+        <h3 class="student-name" data-role="name"></h3>
+        <span class="tag tag-id" data-role="idTag"></span>
+      </div>
+      <button class="presence-toggle" data-action="togglePresence" data-role="presenceToggle">
+        <span data-role="presenceLabel">حاضر</span>
+      </button>
+    </div>
+    <div class="edit-session-row-grades" data-role="gradesBlock">
+      <div class="form-row">
+        <div class="form-group">
+          <label>درجة الواجب</label>
+          <div class="grade-pair">
+            <input type="number" class="input-field" data-field="homeworkGrade" min="0" inputmode="numeric">
+            <span class="grade-sep">/</span>
+            <input type="number" class="input-field grade-max-field" data-field="homeworkMax" value="10" readonly tabindex="-1">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>درجة الامتحان</label>
+          <div class="grade-pair">
+            <input type="number" class="input-field" data-field="examGrade" min="0" inputmode="numeric">
+            <span class="grade-sep">/</span>
+            <input type="number" class="input-field grade-max-field" data-field="examMax" min="1" inputmode="numeric">
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>ملاحظات</label>
+        <textarea class="input-field textarea-field" data-field="notes" rows="2"></textarea>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- ══════════════════════════════════════════════════
+     TASK 2 — REPORT CARD TEMPLATE
+     One card per unique Branch|Year|Day|Time group.
+     ══════════════════════════════════════════════════ -->
+<template id="reportCardTemplate">
+  <div class="report-card">
+
+    <!-- Card header: group identity -->
+    <div class="report-card-header">
+      <div class="report-card-title-block">
+        <h3 class="report-card-title" data-role="groupTitle"></h3>
+        <span class="report-card-sub" data-role="groupSub"></span>
+      </div>
+      <button class="btn btn-small btn-ghost report-expand-btn" data-action="expand">
+        توسيع 🔍
+      </button>
+    </div>
+
+    <!-- Metrics row -->
+    <div class="report-metrics">
+      <div class="report-metric report-metric-total">
+        <span class="report-metric-value" data-role="metricTotal">0</span>
+        <span class="report-metric-label">إجمالي الطلاب</span>
+      </div>
+      <div class="report-metric report-metric-attended">
+        <span class="report-metric-value" data-role="metricAttended">0</span>
+        <span class="report-metric-label">حاضر</span>
+      </div>
+      <div class="report-metric report-metric-absent">
+        <span class="report-metric-value" data-role="metricAbsent">0</span>
+        <span class="report-metric-label">غائب</span>
+      </div>
+    </div>
+
+    <!-- Attendee list with mini search -->
+    <div class="report-attendee-section">
+      <div class="report-mini-search">
+        <span class="search-icon">🔍</span>
+        <input type="search" class="report-mini-search-input" data-role="miniSearch"
+               placeholder="ابحث في الحاضرين..." autocomplete="off">
+      </div>
+      <div class="report-attendee-list" data-role="attendeeList"
+           style="max-height: 150px; overflow-y: auto;">
+        <!-- Attendee names injected here -->
+      </div>
+    </div>
+
+  </div>
+</template>
+
+<!-- ══════════════════════════════════════════════════
+     TASK 2 — EXPAND MODAL (Reports detail)
+     Shows full attendee list for one group.
+     ══════════════════════════════════════════════════ -->
+<div id="reportExpandModal" class="modal-overlay hidden" aria-hidden="true">
+  <div class="modal-box report-expand-box">
+    <div class="modal-header">
+      <h2 id="reportExpandTitle">الحاضرون</h2>
+      <button class="modal-close" id="reportExpandClose" aria-label="إغلاق">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="muted" id="reportExpandSub" style="margin-bottom:12px;"></p>
+
+      <!-- Full-list search -->
+      <div class="approvals-search-bar" style="margin-bottom:12px;">
+        <span class="search-icon">🔍</span>
+        <input type="search" id="reportExpandSearch" placeholder="ابحث في القائمة..." autocomplete="off">
+      </div>
+
+      <!-- Metrics inside modal -->
+      <div class="report-metrics" id="reportExpandMetrics" style="margin-bottom:14px;"></div>
+
+      <!-- Scrollable full list -->
+      <div id="reportExpandList" class="report-expand-full-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CONFIRM DIALOG ============ -->
+<div id="confirmModal" class="modal-overlay hidden" aria-hidden="true">
+  <div class="modal-box confirm-box">
+    <div class="confirm-icon">⚠️</div>
+    <h3 id="confirmTitle">هل أنت متأكد؟</h3>
+    <p id="confirmMessage" class="muted"></p>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" id="confirmCancelBtn">إلغاء</button>
+      <button class="btn btn-danger" id="confirmOkBtn">تأكيد</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADD STUDENT MODAL ============ -->
+<div id="addStudentModal" class="modal-overlay hidden" aria-hidden="true">
+  <div class="modal-box edit-box">
+    <div class="modal-header">
+      <h2>إضافة طالب جديد</h2>
+      <button class="modal-close" id="addStudentModalClose" aria-label="إغلاق">✕</button>
+    </div>
+    <div class="modal-body">
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>السنتر (الفرع)</label>
+          <select class="input-field select-field" id="newStudentBranch">
+            <option value="">اختر السنتر</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>المرحلة الدراسية</label>
+          <select class="input-field select-field" id="newStudentYear">
+            <option value="">اختر المرحلة</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>اسم الطالب</label>
+        <input type="text" class="input-field" id="newStudentName" placeholder="اكتب اسم الطالب بالكامل" autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label>رقم هاتف ولي الأمر</label>
+        <input type="tel" class="input-field" id="newStudentPhone" placeholder="01xxxxxxxxx" inputmode="tel" autocomplete="off">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>اليوم</label>
+          <select class="input-field select-field" id="newStudentDay">
+            <option value="">اختر اليوم</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>الموعد</label>
+          <select class="input-field select-field" id="newStudentTime">
+            <option value="">اختر الموعد</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="id-preview" id="idPreview">
+        <span class="id-preview-label">كود الطالب المتوقع:</span>
+        <span class="id-preview-value" id="idPreviewValue">—</span>
+      </div>
+      
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="cancelAddStudentBtn">إلغاء</button>
+      <button class="btn btn-primary" id="saveNewStudentBtn">💾 حفظ الطالب</button>
+    </div>
+  </div>
+</div>
+
+<!-- Supabase JS SDK — لازم يتحمّل قبل db.js و app.js عشان يبقى متاح كـ window.supabase.
+     defer بيضمن إن ده بيحصل بالترتيب الصح (السكريبتات المؤجلة بتتنفذ
+     بنفس ترتيبها في الـ DOM) من غير ما تبلوك رندر الـ splash screen. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" defer></script>
+<script src="db.js" defer></script>
+<script src="app.js" defer></script>
+</body>
+</html>
