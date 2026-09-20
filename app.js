@@ -407,6 +407,11 @@
 
     els.studentSearch    = $('#studentSearch');
     els.clearSearchBtn   = $('#clearSearchBtn');
+    els.qrScanBtn        = $('#qrScanBtn');
+    els.qrScanModal      = $('#qrScanModal');
+    els.qrScanModalClose = $('#qrScanModalClose');
+    els.qrReader         = $('#qrReader');
+    els.qrScanHint       = $('#qrScanHint');
     els.groupChips       = $('#groupChips');
     els.studentsList     = $('#studentsList');
     els.noResults        = $('#noResults');
@@ -700,6 +705,13 @@
       els.clearSearchBtn.classList.add('hidden');
       renderStudentsList();
       els.studentSearch.focus();
+    });
+
+    // بحث عن طريق مسح QR Code
+    els.qrScanBtn.addEventListener('click', openQrScanModal);
+    els.qrScanModalClose.addEventListener('click', closeQrScanModal);
+    els.qrScanModal.addEventListener('click', (e) => {
+      if (e.target === els.qrScanModal) closeQrScanModal();
     });
 
     // ── Task 2 — Approvals in-view search (now filters Session Cards) ──
@@ -1858,6 +1870,167 @@
     } else {
       els.idPreviewValue.textContent = nextId;
     }
+  }
+
+  /* ===================================================================
+     QR CODE SEARCH — مسح QR Code من الكاميرا مباشرة داخل شاشة الطلاب
+     ===================================================================
+     - المكتبة (html5-qrcode) بتتحمّل lazy أول ما المستخدم يفتح شاشة
+       المسح، فمفيش أي تحميل زيادة لو الميزة دي معملهاش استخدام. بعد أول
+       استخدام، الـ Service Worker (sw.js) بيكاش الملف تلقائيًا (cache-first
+       cross-origin) فهيشتغل أوفلاين كمان من المرة التانية.
+     - الماسح بيشتغل بأعلى fps ممكن (10) وبresolution متوسطة عشان يمسك
+       الكود بسرعة فائقة من غير أي لاج، وبيوقف نفسه ويتنضف فورًا بمجرد
+       ما يلاقي نتيجة أو المستخدم يقفل الشاشة — من غير أي إعادة تحميل
+       أو خروج من الصفحة.
+     - القيمة اللي بتتقرا من الـ QR بتتحط في خانة البحث الحالية وتشغّل
+       نفس منطق getFilteredStudents() الموجود بالظبط (فلترة بالاسم/الكود).
+     =================================================================== */
+
+  const QR_LIB_URL = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
+  let qrLibLoadPromise = null;
+  let qrScannerInstance = null;
+  let qrScannerIsRunning = false;
+
+  function loadQrScannerLib() {
+    if (window.Html5Qrcode) return Promise.resolve();
+    if (qrLibLoadPromise) return qrLibLoadPromise;
+
+    qrLibLoadPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = QR_LIB_URL;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => {
+        qrLibLoadPromise = null; // يسمح بمحاولة تانية لاحقًا
+        reject(new Error('QR_LIB_LOAD_FAILED'));
+      };
+      document.head.appendChild(script);
+    });
+
+    return qrLibLoadPromise;
+  }
+
+  function setQrScanStatus(message, type) {
+    if (!els.qrScanHint) return;
+    els.qrScanHint.textContent = message;
+    els.qrScanHint.classList.remove('qr-scan-status', 'qr-status-error', 'qr-status-success');
+    if (type) els.qrScanHint.classList.add('qr-scan-status', `qr-status-${type}`);
+  }
+
+  async function openQrScanModal() {
+    els.qrScanModal.classList.remove('hidden');
+    els.qrScanModal.setAttribute('aria-hidden', 'false');
+    setQrScanStatus('جاري تجهيز الكاميرا...', null);
+
+    try {
+      await loadQrScannerLib();
+    } catch (err) {
+      setQrScanStatus('تعذّر تحميل مكوّن المسح. تأكد من الاتصال بالإنترنت أول مرة استخدام.', 'error');
+      return;
+    }
+
+    // لو الشاشة اتقفلت وهي لسه بتحمّل المكتبة (المستخدم ضغط إغلاق بسرعة)
+    if (els.qrScanModal.classList.contains('hidden')) return;
+
+    try {
+      qrScannerInstance = new Html5Qrcode('qrReader', { verbose: false });
+      await qrScannerInstance.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.7);
+            return { width: size, height: size };
+          },
+        },
+        onQrScanSuccess,
+        () => { /* فريم من غير كود — تجاهل بصمت، ده متوقع في كل فريم تقريبًا */ }
+      );
+      qrScannerIsRunning = true;
+      setQrScanStatus('وجّه الكاميرا نحو QR Code الخاص بالطالب', null);
+    } catch (err) {
+      qrScannerIsRunning = false;
+      const denied = String(err && err.name || err || '').toLowerCase().includes('notallowed')
+        || String(err || '').includes('Permission');
+      setQrScanStatus(
+        denied
+          ? 'تم رفض إذن الكاميرا. برجاء السماح بالوصول للكاميرا من إعدادات المتصفح.'
+          : 'تعذّر تشغيل الكاميرا على هذا الجهاز.',
+        'error'
+      );
+    }
+  }
+
+  async function onQrScanSuccess(decodedText) {
+    if (!qrScannerIsRunning) return; // منع أي نداء مزدوج بعد التوقف
+    qrScannerIsRunning = false; // إيقاف فوري لمنع أي مسح إضافي أثناء الإغلاق
+
+    setQrScanStatus('تم العثور على الكود ✓', 'success');
+    const studentId = extractStudentIdFromQr(decodedText);
+
+    await stopQrScanner();
+    closeQrScanModal();
+
+    // تعبئة خانة البحث بنفس منطق البحث اليدوي وتنفيذ البحث فورًا
+    els.studentSearch.value = studentId;
+    state.searchQuery = studentId;
+    els.clearSearchBtn.classList.toggle('hidden', state.searchQuery.length === 0);
+    renderStudentsList();
+    els.studentSearch.focus();
+  }
+
+  /**
+   * الكود المطبوع على QR ممكن يكون رقم الطالب مباشرة (مثال: "1001")، أو
+   * رابط فيه الكود كـ query param (مثال: "https://.../?student=1001")،
+   * أو نص فيه الرقم متضمّن. الدالة دي بتحاول تستخرج رقم الطالب بأفضل شكل
+   * ممكن، ولو معرفتش تستخرج رقم واضح بترجع النص الخام زي ما هو عشان
+   * البحث بالاسم النصي يفضل شغال برضه.
+   */
+  function extractStudentIdFromQr(rawText) {
+    const text = String(rawText || '').trim();
+    if (!text) return '';
+
+    // حاول تفسيره كرابط فيه query param زي id/student/code
+    try {
+      const url = new URL(text);
+      const candidateKeys = ['id', 'student', 'studentId', 'student_id', 'code'];
+      for (const key of candidateKeys) {
+        const val = url.searchParams.get(key);
+        if (val) return val.trim();
+      }
+      // لو رابط من غير query param معروف، جرّب آخر جزء من المسار لو رقم
+      const pathParts = url.pathname.split('/').filter(Boolean);
+      const lastPart = pathParts[pathParts.length - 1];
+      if (lastPart && /^\d+$/.test(lastPart)) return lastPart;
+    } catch (e) {
+      // مش رابط — كمّل عادي
+    }
+
+    // لو النص كله أرقام، ده رقم الطالب مباشرة
+    if (/^\d+$/.test(text)) return text;
+
+    // غير كده، استخدم النص الخام زي ما هو (يسمح بالبحث بالاسم لو القيمة نصية)
+    return text;
+  }
+
+  async function stopQrScanner() {
+    qrScannerIsRunning = false;
+    if (qrScannerInstance) {
+      try {
+        await qrScannerInstance.stop();
+        qrScannerInstance.clear();
+      } catch (err) {
+        // الماسح ممكن يكون اتوقف بالفعل أو مستخدمش الكاميرا لسه — تجاهل
+      }
+      qrScannerInstance = null;
+    }
+  }
+
+  function closeQrScanModal() {
+    els.qrScanModal.classList.add('hidden');
+    els.qrScanModal.setAttribute('aria-hidden', 'true');
+    stopQrScanner();
   }
 
   /* ===================================================================
