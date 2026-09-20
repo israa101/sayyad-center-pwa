@@ -123,6 +123,7 @@
         <span class="search-icon">🔍</span>
         <input type="search" id="studentSearch" placeholder="ابحث بالاسم أو رقم الطالب (مثال: 1001 أو أحمد)" autocomplete="off" inputmode="search">
         <button id="clearSearchBtn" class="clear-search-btn hidden" aria-label="مسح البحث">✕</button>
+        <button id="qrScanBtn" class="qr-scan-btn" type="button" aria-label="بحث عن طريق QR Code" title="مسح QR Code">📷</button>
       </div>
 
       <!-- فلتر السنتر + المرحلة الدراسية لصفحة الطلاب -->
@@ -518,6 +519,20 @@
   </div>
 </div>
 
+<!-- ============ QR SCAN MODAL ============ -->
+<div id="qrScanModal" class="modal-overlay hidden" aria-hidden="true">
+  <div class="modal-box qr-scan-box">
+    <div class="modal-header">
+      <h2>مسح QR Code</h2>
+      <button class="modal-close" id="qrScanModalClose" aria-label="إغلاق">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="qrReader" class="qr-reader"></div>
+      <p class="muted qr-scan-hint" id="qrScanHint">وجّه الكاميرا نحو QR Code الخاص بالطالب</p>
+    </div>
+  </div>
+</div>
+
 <!-- ============ ADD STUDENT MODAL ============ -->
 <div id="addStudentModal" class="modal-overlay hidden" aria-hidden="true">
   <div class="modal-box edit-box">
@@ -584,6 +599,10 @@
      defer بيضمن إن ده بيحصل بالترتيب الصح (السكريبتات المؤجلة بتتنفذ
      بنفس ترتيبها في الـ DOM) من غير ما تبلوك رندر الـ splash screen. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" defer></script>
+<!-- html5-qrcode: مكتبة خفيفة لمسح QR Code من الكاميرا مباشرة داخل الصفحة
+     بدون أي reload أو خروج. بيتم تحميلها lazy فقط لما المستخدم يفتح شاشة
+     المسح فعليًا (شوف loadQrScannerLib في app.js)، فمفيش أي تكلفة أداء
+     أو استهلاك بيانات لو الميزة دي معملهاش استخدام. -->
 <script src="db.js" defer></script>
 <script src="app.js" defer></script>
 </body>
