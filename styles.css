@@ -352,6 +352,34 @@ input, textarea, select { border: none; outline: none; }
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 
+.qr-scan-btn {
+  width: 34px; height: 34px; border-radius: var(--radius-lg);
+  background: var(--primary); color: #fff;
+  font-size: 16px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-glow);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.qr-scan-btn:hover { opacity: 0.92; }
+.qr-scan-btn:active { transform: scale(0.94); }
+
+/* ============ QR SCAN MODAL ============ */
+.qr-scan-box { max-width: 420px; width: 100%; }
+.qr-reader {
+  width: 100%; min-height: 260px; border-radius: var(--radius-lg);
+  overflow: hidden; background: #000;
+  display: flex; align-items: center; justify-content: center;
+}
+.qr-reader video { border-radius: var(--radius-lg); }
+.qr-scan-hint {
+  text-align: center; margin-top: 12px; font-size: 13px;
+}
+.qr-scan-status {
+  text-align: center; margin-top: 10px; font-size: 13px; font-weight: 700;
+}
+.qr-scan-status.qr-status-error { color: var(--danger, #e5484d); }
+.qr-scan-status.qr-status-success { color: var(--success, #2fb344); }
+
 .filter-chips { display: flex; gap: 8px; margin-top: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
 .filter-chips::-webkit-scrollbar { display: none; }
 
